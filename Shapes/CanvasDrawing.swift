@@ -20,7 +20,7 @@ struct FrameCanvas: View{
             
             // Foliums
             context.transform.tx = position.x
-            context.transform.ty =  position.y
+            context.transform.ty =  position.y - height
             context.transform.ty += CGFloat(20 * growth)
             for i in 1...3 {
                 context.transform.ty += CGFloat(20 * growth)
@@ -55,31 +55,36 @@ struct FrameCanvas: View{
 }
 
 struct CanvasDrawing: View {
+    let loop: Bool = true
+    let FPS: CGFloat = 30
     let maxRotation: CGFloat = 180
     let maxGrowth: CGFloat = 1
-    let maxFrames: Int = 170
-    
-    @State var rotation: CGFloat = 0
-    @State var growth: CGFloat = 1
+    let maxFrames: Int = 140
     @State var frame: Int = 1
     
     var body: some View {
         GeometryReader { proxy in
             let center: CGPoint = .init(x: proxy.size.width/2, y: proxy.size.height/2)
-            TimelineView(.animation(minimumInterval: 0.06)) { timeline in
-                FrameCanvas(
-                    position: center,
-                    growth: getGrowth(),
-                    rotation: getPetalRotation()
-                )
-            }
+            FrameCanvas(
+                position: center,
+                growth: getGrowth(),
+                rotation: getPetalRotation()
+            )
         }
         .frame(width: 300, height: 300)
+        .onAppear{
+            Timer.scheduledTimer(withTimeInterval: 1/30, repeats: true) { _ in
+                frame += 1
+                if frame > self.maxFrames {
+                    self.frame = 1
+                }
+            }
+        }
         
         Slider(
             value: Binding(
                 get: { Double(frame) },
-                set: { frame = Int($0); update()}
+                set: { frame = Int($0)}
             ),
             in: 1...Double(maxFrames),
             step: 1
@@ -87,13 +92,6 @@ struct CanvasDrawing: View {
         .padding(20)
     }
 
-    func update(){
-        frame += 1
-        if frame > maxFrames{
-            frame = 1
-        }
-    }
-    
     func getPetalRotation() -> CGFloat{
         let currentRotation = maxRotation * CGFloat(frame) / CGFloat(maxFrames)
         let normalizedRotation = currentRotation / maxRotation
@@ -109,7 +107,7 @@ struct CanvasDrawing: View {
     }
     
     func easeOut(t: Double) -> Double{
-        return 1 - pow(1-t, 5)
+        return 1 - pow(1-t, 2)
     }
     
     func convertToImage() -> some View{
