@@ -27,6 +27,7 @@ class GridElement: Identifiable{
 
 @Observable
 class PuzzlePiece: Identifiable, Codable, Transferable{
+    var id = UUID()
     var coordinate: Coordinate?
     let image: String
     
@@ -46,7 +47,6 @@ extension UTType {
 }
 
 struct PuzzleView: View {
-    
     static let gridsize = 75.0
     var columns: [GridItem] = [
         GridItem(.fixed(gridsize), spacing: 0),
@@ -62,7 +62,7 @@ struct PuzzleView: View {
     }
 
     let pieces = ["star", "star", "star", "star", "star", "star", "star", "star", "star"]
-    let pieces2 = [
+    @State var pieces2 = [
         PuzzlePiece(
             image: "star"
         ),
@@ -96,6 +96,9 @@ struct PuzzleView: View {
                             // assign new grid element coordinate to piece
                             piece.coordinate = g.coordinate
                             
+                            // remove from piece conveyer
+                            pieces2 = pieces2.filter(){$0.id != piece.id}
+                            
                             return true
                         }
                     if let pieceImage = g.puzzlePiece?.image{
@@ -109,13 +112,16 @@ struct PuzzleView: View {
                 }
             }
         }
-        .background(.red)
         .padding(.horizontal, 10)
         
         // Puzzle Pieces
         HStack{
             ForEach(pieces2, id: \.image){ piece in
                 Image(systemName: piece.image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 50, height: 50)
+                    .background(.yellow)
                     .draggable(piece)
             }
         }
