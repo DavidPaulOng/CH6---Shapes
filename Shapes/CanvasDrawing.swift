@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import UniformTypeIdentifiers
+
 
 struct FrameCanvas: View{
     let position: CGPoint
@@ -67,9 +69,11 @@ struct CanvasDrawing: View {
             let center: CGPoint = .init(x: proxy.size.width/2, y: proxy.size.height/2)
             FrameCanvas(
                 position: center,
-                growth: getGrowth(),
-                rotation: getPetalRotation()
+                growth: getGrowth(frame: frame),
+                rotation: getPetalRotation(frame: frame)
             )
+            
+//            exportImages()
         }
         .frame(width: 300, height: 300)
         .onAppear{
@@ -79,6 +83,7 @@ struct CanvasDrawing: View {
                     self.frame = 1
                 }
             }
+            exportGIF()
         }
         
         Slider(
@@ -92,14 +97,14 @@ struct CanvasDrawing: View {
         .padding(20)
     }
 
-    func getPetalRotation() -> CGFloat{
+    func getPetalRotation(frame: Int) -> CGFloat{
         let currentRotation = maxRotation * CGFloat(frame) / CGFloat(maxFrames)
         let normalizedRotation = currentRotation / maxRotation
         let easedRotation = easeOut(t: Double(normalizedRotation))
         return CGFloat(easedRotation) * maxRotation
     }
     
-    func getGrowth() -> CGFloat{
+    func getGrowth(frame: Int) -> CGFloat{
         let currentGrowth = 1 * Double(frame) / Double(maxFrames)
         let normalizedGrowth = currentGrowth / 1
         let easedGrowth = easeOut(t: Double(normalizedGrowth))
@@ -110,13 +115,132 @@ struct CanvasDrawing: View {
         return 1 - pow(1-t, 2)
     }
     
-    func convertToImage() -> some View{
-        let renderer = ImageRenderer(content: CanvasDrawing())
-        if let image = renderer.uiImage {
-            return Image(uiImage: image)
+    func exportImages(){
+        
+        // Get the default directory using the find manager.
+        let fileManager = FileManager.default
+        let directory = fileManager.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        )[0]
+        
+        // Delete all the files in the default directory
+        if let files = try? fileManager.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil
+        ) {
+            for file in files {
+                try? fileManager.removeItem(at: file)
+            }
         }
-        return (Image(systemName: "xmark.circle"))
+        
+        // Get every frame of animation
+        for f in 1...maxFrames {
+            let frame = FrameCanvas(
+                position: CGPoint(x: 150, y: 150),
+                growth: getGrowth(frame: f),
+                rotation: getPetalRotation(frame: f)
+            ).frame(width: 300, height: 300)
+            // Make sure you specify a frame!!
+            // It would draw an empty image otherwise.
+            
+            let renderer = ImageRenderer(content: frame)
+            renderer.scale = 1
+            if let uiImage = renderer.uiImage,
+               let data = uiImage.pngData() {
+
+                let url = directory.appendingPathComponent("flower-\(f).png")
+
+                try? data.write(to: url)
+                print(url.path)
+            }
+
+        }
+        
     }
+    
+    func exportGIF() {
+        let fileManager = FileManager.default
+
+        let directory = fileManager.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        )[0]
+
+        // Make sure the directory exists.
+        try? fileManager.createDirectory(
+            at: directory,
+            withIntermediateDirectories: true
+        )
+
+        let url = directory.appendingPathComponent("flower.gif")
+
+        // Remove existing GIF.
+        try? fileManager.removeItem(at: url)
+
+        guard let destination = CGImageDestinationCreateWithURL(
+            url as CFURL,
+            UTType.gif.identifier as CFString,
+            maxFrames,
+            nil
+        ) else {
+            print("Could not create GIF destination")
+            return
+        }
+
+        // GIF settings
+        let gifProperties: [CFString: Any] = [
+            kCGImagePropertyGIFDictionary: [
+                kCGImagePropertyGIFLoopCount: 0
+            ]
+        ]
+
+        CGImageDestinationSetProperties(
+            destination,
+            gifProperties as CFDictionary
+        )
+
+        // Render every frame
+        for f in 1...maxFrames {
+            let frame = FrameCanvas(
+                position: CGPoint(x: 150, y: 150),
+                growth: getGrowth(frame: f),
+                rotation: getPetalRotation(frame: f)
+            )
+            .frame(width: 300, height: 300)
+
+            let renderer = ImageRenderer(content: frame)
+            renderer.scale = 1
+
+            guard let cgImage = renderer.cgImage else {
+                print("Could not render frame \(f)")
+                continue
+            }
+
+            // Frame duration: 1/30 second
+            let frameProperties: [CFString: Any] = [
+                kCGImagePropertyGIFDictionary: [
+                    kCGImagePropertyGIFDelayTime: 1.0 / 30.0
+                ]
+            ]
+
+            CGImageDestinationAddImage(
+                destination,
+                cgImage,
+                frameProperties as CFDictionary
+            )
+        }
+
+        // Finish writing GIF
+        guard CGImageDestinationFinalize(destination) else {
+            print("Could not finalize GIF")
+            return
+        }
+
+        print("GIF saved to:")
+        print(url.path)
+    }
+
 
 }
 
