@@ -6,85 +6,52 @@
 //
 
 import SwiftUI
-import UIKit
-import UniformTypeIdentifiers
-
-struct Coordinate: Hashable, Codable {
-    let row: Int
-    let column: Int
-}
-
-@Observable
-class GridElement: Identifiable{
-    let coordinate: Coordinate
-    var puzzlePiece: PuzzlePiece?
-    
-    init(coordinate: Coordinate, puzzlePiece: PuzzlePiece? = nil) {
-        self.coordinate = coordinate
-        self.puzzlePiece = puzzlePiece
-    }
-}
-
-@Observable
-class PuzzlePiece: Identifiable, Codable, Transferable{
-    var id = UUID()
-    var coordinate: Coordinate?
-    let solution: Coordinate
-    
-    init(coordinate: Coordinate? = nil, solution: Coordinate) {
-        self.coordinate = coordinate
-        self.solution = solution
-    }
-    
-    static var transferRepresentation: some TransferRepresentation {
-        CodableRepresentation(contentType: .puzzlePiece!)
-    }
-    
-}
-
-extension UTType {
-    static let puzzlePiece = UTType("com.davidpaulong.Shapes")
-}
 
 struct PuzzleView: View {
     static let gridsize = 75.0
-    var columns: [GridItem] = [
-        GridItem(.fixed(gridsize), spacing: 0),
-        GridItem(.fixed(gridsize), spacing: 0),
-        GridItem(.fixed(gridsize), spacing: 0)
-    ]
-    @State var grid: [GridElement] = (0..<3).flatMap { row in
-        (0..<3).map { column in
-            GridElement(
-                coordinate: .init(row: row, column: column)
-            )
+    static let trayMemberSize = 50.0
+    static let size = 2
+    
+    var pieceImageLookup: [Coordinate: UIImage] = [:]
+    var columns: [GridItem] = Array(
+        repeating: GridItem(.fixed(gridsize), spacing: 0),
+        count: size
+    )
+
+    @State var pieces: [PuzzlePiece]
+    @State var trayPieces: [PuzzlePiece]
+    @State var solved: Bool = false
+    @State var grid: [GridElement] = (0..<size).flatMap { row in
+        (0..<size).map { column in
+            GridElement(coordinate: .init(row: row, column: column))
         }
     }
-    var pieceImageLookup: [Coordinate: UIImage] = [:]
-    @State var pieces: [PuzzlePiece]
+    
     init(){
-        let images = cutImages(img: UIImage(named: "flower-140.png")!, size: 3).flatMap{$0} as! [UIImage]
-        
         var index: Int = 0
         var result: [PuzzlePiece] = []
-        for row in 0..<3 {
-            for column in 0..<3 {
+        let images = cutImages(img: UIImage(named: "flower-140.png")!, size: PuzzleView.size).flatMap{$0} as! [UIImage]
+        for column in 0..<PuzzleView.size {
+            for row in 0..<PuzzleView.size {
                 result.append(PuzzlePiece(solution: Coordinate(row: row, column: column)))
                 pieceImageLookup[Coordinate(row: row, column: column)] = images[index]
                 index += 1
             }
         }
-        pieces = result
+        
+        // Randomize
+        /// @State properties need the underscore-prefixed assignment inside init:
+        result.shuffle()
+        self._pieces = State(initialValue: result)
+        self._trayPieces = State(initialValue: result)
     }
-    
-    @State var solved: Bool = false
     
     var body: some View {
         if solved{
             FlowerCanvas()
         }
         else{
-            // Gridm
+            // Grid
             LazyVGrid(columns: columns, spacing: 0) {
                 ForEach(grid, id: \.coordinate){ g in
                     ZStack{
@@ -92,8 +59,9 @@ struct PuzzleView: View {
                             .frame(width: PuzzleView.gridsize, height: PuzzleView.gridsize)
                             .border(Color.white)
                             .dropDestination(for:PuzzlePiece.self){ droppedItems, location in
-                                
-                                guard let piece = droppedItems.first else { return false}
+                                // The dropped piece is not the live object sitting in your pieces array.
+                                guard let droppedPiece = droppedItems.first else { return false}
+                                guard let piece = pieces.first(where: { $0.solution == droppedPiece.solution }) else { return false}
                                 
                                 // clear the puzzle piece's previous position
                                 if let previousG = grid.first(where: { $0.coordinate == piece.coordinate }) {
@@ -107,7 +75,7 @@ struct PuzzleView: View {
                                 piece.coordinate = g.coordinate
                                 
                                 // remove from piece conveyer
-                                pieces = pieces.filter(){$0.id != piece.id}
+                                trayPieces = trayPieces.filter(){$0.id != piece.id}
                                 
                                 // check for solve
                                 if isSolved(){
@@ -129,14 +97,18 @@ struct PuzzleView: View {
             .padding(.horizontal, 10)
             
             // Puzzle Pieces
-            HStack{
-                ForEach(pieces, id: \.solution){ piece in
+            let trayColumns: [GridItem] = Array(
+                repeating: GridItem(.fixed(PuzzleView.trayMemberSize), spacing: 0),
+                count: 4
+            )
+            LazyVGrid(columns: trayColumns, spacing: 0) {
+                ForEach(trayPieces, id: \.solution) { piece in
                     let solution = piece.solution
-                    if let pieceImage = pieceImageLookup[solution]{
+                    if let pieceImage = pieceImageLookup[solution] {
                         Image(uiImage: pieceImage)
                             .resizable()
                             .scaledToFill()
-                            .frame(width: 50, height: 50)
+                            .frame(width: PuzzleView.trayMemberSize, height: PuzzleView.trayMemberSize)
                             .border(Color.black)
                             .draggable(piece)
                     }
@@ -147,7 +119,7 @@ struct PuzzleView: View {
     }
     
     func isSolved() -> Bool {
-        pieces.allSatisfy({$0.coordinate == $0.solution})
+        return pieces.allSatisfy({$0.coordinate == $0.solution})
     }
 }
 

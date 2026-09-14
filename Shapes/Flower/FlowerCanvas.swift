@@ -83,7 +83,7 @@ struct FlowerCanvas: View {
                 }
             }
             // MARK: Use this to export
-            exportGIF()
+            exportImages()
         }
         
         Slider(
