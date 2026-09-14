@@ -29,11 +29,11 @@ class GridElement: Identifiable{
 class PuzzlePiece: Identifiable, Codable, Transferable{
     var id = UUID()
     var coordinate: Coordinate?
-    let image: String
+    let solution: Coordinate
     
-    init(coordinate: Coordinate? = nil, image: String) {
+    init(coordinate: Coordinate? = nil, solution: Coordinate) {
         self.coordinate = coordinate
-        self.image = image
+        self.solution = solution
     }
     
     static var transferRepresentation: some TransferRepresentation {
@@ -60,73 +60,94 @@ struct PuzzleView: View {
             )
         }
     }
-
-    let pieces = ["star", "star", "star", "star", "star", "star", "star", "star", "star"]
-    @State var pieces2 = [
-        PuzzlePiece(
-            image: "star"
-        ),
-        PuzzlePiece(
-            image: "square.and.arrow.uptar"
-        ),PuzzlePiece(
-            image: "pencil"
-        )
-    ]
+    var pieceImageLookup: [Coordinate: UIImage] = [:]
+    @State var pieces: [PuzzlePiece]
+    init(){
+        let images = cutImages(img: UIImage(named: "flower-140.png")!, size: 3).flatMap{$0} as! [UIImage]
+        
+        var index: Int = 0
+        var result: [PuzzlePiece] = []
+        for row in 0..<3 {
+            for column in 0..<3 {
+                result.append(PuzzlePiece(solution: Coordinate(row: row, column: column)))
+                pieceImageLookup[Coordinate(row: row, column: column)] = images[index]
+                index += 1
+            }
+        }
+        pieces = result
+    }
+    
+    @State var solved: Bool = false
     
     var body: some View {
-        // Grid
-        LazyVGrid(columns: columns, spacing: 0) {
-            ForEach(grid, id: \.coordinate){ g in
-                ZStack{
-                    Rectangle()
-                        .frame(width: PuzzleView.gridsize, height: PuzzleView.gridsize)
-                        .border(Color.white)
-                        .dropDestination(for:PuzzlePiece.self){ droppedItems, location in
-                            
-                            guard let piece = droppedItems.first else { return false}
-                            
-                            // clear the puzzle piece's previous position
-                            if let previousG = grid.first(where: { $0.coordinate == piece.coordinate }) {
-                                previousG.puzzlePiece = nil
-                            }
-                            
-                            // assign piece to the grid element
-                            g.puzzlePiece = piece
-                            
-                            // assign new grid element coordinate to piece
-                            piece.coordinate = g.coordinate
-                            
-                            // remove from piece conveyer
-                            pieces2 = pieces2.filter(){$0.id != piece.id}
-                            
-                            return true
-                        }
-                    if let pieceImage = g.puzzlePiece?.image{
-                        Image(systemName: pieceImage)
-                            .resizable()
-                            .scaledToFit()
+        if solved{
+            FlowerCanvas()
+        }
+        else{
+            // Gridm
+            LazyVGrid(columns: columns, spacing: 0) {
+                ForEach(grid, id: \.coordinate){ g in
+                    ZStack{
+                        Rectangle()
                             .frame(width: PuzzleView.gridsize, height: PuzzleView.gridsize)
-                            .background(Color.yellow)
-                            .draggable(g.puzzlePiece!)
+                            .border(Color.white)
+                            .dropDestination(for:PuzzlePiece.self){ droppedItems, location in
+                                
+                                guard let piece = droppedItems.first else { return false}
+                                
+                                // clear the puzzle piece's previous position
+                                if let previousG = grid.first(where: { $0.coordinate == piece.coordinate }) {
+                                    previousG.puzzlePiece = nil
+                                }
+                                
+                                // assign piece to the grid element
+                                g.puzzlePiece = piece
+                                
+                                // assign new grid element coordinate to piece
+                                piece.coordinate = g.coordinate
+                                
+                                // remove from piece conveyer
+                                pieces = pieces.filter(){$0.id != piece.id}
+                                
+                                // check for solve
+                                if isSolved(){
+                                    solved = true
+                                }
+                                return true
+                            }
+                        if let solution = g.puzzlePiece?.solution,
+                           let pieceImage = pieceImageLookup[solution] {
+                            Image(uiImage: pieceImage)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: PuzzleView.gridsize, height: PuzzleView.gridsize)
+                                .draggable(g.puzzlePiece!)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 10)
+            
+            // Puzzle Pieces
+            HStack{
+                ForEach(pieces, id: \.solution){ piece in
+                    let solution = piece.solution
+                    if let pieceImage = pieceImageLookup[solution]{
+                        Image(uiImage: pieceImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 50, height: 50)
+                            .border(Color.black)
+                            .draggable(piece)
                     }
                 }
             }
         }
-        .padding(.horizontal, 10)
         
-        // Puzzle Pieces
-        HStack{
-            ForEach(pieces2, id: \.image){ piece in
-                Image(systemName: piece.image)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 50, height: 50)
-                    .background(.yellow)
-                    .draggable(piece)
-            }
-        }
-        
-        
+    }
+    
+    func isSolved() -> Bool {
+        pieces.allSatisfy({$0.coordinate == $0.solution})
     }
 }
 

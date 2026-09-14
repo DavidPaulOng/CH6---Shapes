@@ -22,7 +22,7 @@ struct FlowerFrameCanvas: View{
             
             // Foliums
             context.transform.tx = position.x
-            context.transform.ty =  position.y - height
+            context.transform.ty =  position.y - height + 50
             context.transform.ty += CGFloat(20 * growth)
             for i in 1...3 {
                 context.transform.ty += CGFloat(20 * growth)
@@ -34,7 +34,7 @@ struct FlowerFrameCanvas: View{
             }
             
             // Stem
-            context.transform.ty = position.y - height
+            context.transform.ty = position.y - height + 50
             context.fill(
                 Rectangle().path(in: CGRect(x: -(7 * growth / 2), y: 0, width: 7 * growth, height: height)),
                 with: .color(.brown)

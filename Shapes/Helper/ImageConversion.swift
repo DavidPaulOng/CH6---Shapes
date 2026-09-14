@@ -34,7 +34,6 @@ struct ImageConversion: View {
 }
 
 func cutImages(img: UIImage, size: Int) -> [[UIImage?]]{
-    
     var images: [[UIImage?]] = Array(
         repeating: Array(repeating: nil, count: size),
         count: size
