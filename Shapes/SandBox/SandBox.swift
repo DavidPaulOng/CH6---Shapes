@@ -69,7 +69,85 @@ struct Superellipse: Shape {
     }
 }
 
-struct Flower: View{
+struct FlowerPetals: Shape{
+    var b: CGFloat
+    var rotation: CGFloat
+    
+    init(b: CGFloat, rotation: CGFloat){
+        self.b = b
+        self.rotation = rotation
+    }
+    
+    var animatableData: CGFloat {
+        get { rotation }
+        set { rotation = newValue }
+    }
+    func path(in rect: CGRect) -> Path{
+        var pencil = Path()
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let samples = 100
+        // the maximum radius of this equation is 3r.
+        // the range of sin is [-1, 1]
+        // the diameter is exactly 6r
+        // which is how we get 6 to find the r
+        let r = min(rect.width, rect.height) / 6
+        
+        for i in 0...samples {
+            let rotationRadians = rotation * .pi / 180
+            let theta = CGFloat(i) * (2 * CGFloat.pi / CGFloat(samples))
+            let equationTheta = theta + rotationRadians
+            
+            let sinModifier = sin(theta * b)
+            let xOffset = r * (2 - sinModifier) * cos(equationTheta)
+            let yOffset = r * (2 - sinModifier) * sin(equationTheta)
+            
+            let point = CGPoint(x: center.x + xOffset, y: center.y + yOffset)
+            
+            if theta == 0 {
+                pencil.move(to: point)
+            } else {
+                pencil.addLine(to: point)
+            }
+        }
+        pencil.closeSubpath()
+        return pencil
+    }
+}
+
+struct Folium: Shape {
+    var a: CGFloat
+    var rotation: CGFloat
+    
+    func path(in rect: CGRect) -> Path {
+        var pencil = Path()
+        let samples = 100
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let b = rect.width / 2 //Literally just got lucky finding this number idk why / 2 works.
+        
+        for i in 0...samples {
+            let rotationRadians = rotation * .pi / 180
+            let theta = CGFloat(i) * (2 * CGFloat.pi / CGFloat(samples))
+            let equationTheta = theta + rotationRadians
+            
+            // Polar Equation of a Folium
+            let r = -b * cos(theta) + 4 * a * cos(theta) * pow(sin(theta), 2)
+            let xOffset = r * cos(equationTheta)
+            let yOffset = r * sin(equationTheta)
+            
+            let point = CGPoint(x: center.x + xOffset, y: center.y + yOffset)
+            
+            if theta == 0 {
+                pencil.move(to: point)
+            } else {
+                pencil.addLine(to: point)
+            }
+        }
+        return pencil
+    }
+}
+
+
+struct FlowerShape: View{
     @State var rotation: CGFloat = 0
     
     var body: some View{
@@ -109,7 +187,7 @@ struct Flower: View{
 }
 
 
-struct ContentView: View {
+struct SandBox: View {
     @State private var offset = 0.75
     @State private var n = 3.0
     @State private var r = 10.0
@@ -117,7 +195,7 @@ struct ContentView: View {
     var body: some View {
         ScrollView{
             VStack(spacing: 40) {
-                Flower()
+                FlowerShape()
                     .frame(width: 200, height: 200)
                 Text("The Flower")
                     .font(.largeTitle)
@@ -142,5 +220,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    SandBox()
 }

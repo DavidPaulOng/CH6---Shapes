@@ -9,7 +9,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 
-struct FrameCanvas: View{
+struct FlowerFrameCanvas: View{
     let position: CGPoint
     let growth: CGFloat
     let rotation: CGFloat
@@ -28,7 +28,7 @@ struct FrameCanvas: View{
                 context.transform.ty += CGFloat(20 * growth)
                 let rotation = CGFloat((i % 2 == 0) ? 0 : 180)
                 context.fill(
-                    FlowerE.Leaves(rotation:rotation, a: 3, b: 15 * growth).draw(),
+                    Flower.Leaves(rotation:rotation, a: 3, b: 15 * growth).draw(),
                     with: .color(.green)
                 )
             }
@@ -42,7 +42,7 @@ struct FrameCanvas: View{
             
             // Petals
             context.fill(
-                FlowerE.Petals(rotation:rotation, r: 15 * growth, b: 6).draw(),
+                Flower.Petals(rotation:rotation, r: 15 * growth, b: 6).draw(),
                 with: .color(.yellow)
             )
             
@@ -56,7 +56,7 @@ struct FrameCanvas: View{
     }
 }
 
-struct CanvasDrawing: View {
+struct FlowerCanvas: View {
     let loop: Bool = true
     let FPS: CGFloat = 30
     let maxRotation: CGFloat = 180
@@ -67,13 +67,12 @@ struct CanvasDrawing: View {
     var body: some View {
         GeometryReader { proxy in
             let center: CGPoint = .init(x: proxy.size.width/2, y: proxy.size.height/2)
-            FrameCanvas(
+            FlowerFrameCanvas(
                 position: center,
                 growth: getGrowth(frame: frame),
                 rotation: getPetalRotation(frame: frame)
             )
             
-//            exportImages()
         }
         .frame(width: 300, height: 300)
         .onAppear{
@@ -83,6 +82,7 @@ struct CanvasDrawing: View {
                     self.frame = 1
                 }
             }
+            // MARK: Use this to export
             exportGIF()
         }
         
@@ -136,7 +136,7 @@ struct CanvasDrawing: View {
         
         // Get every frame of animation
         for f in 1...maxFrames {
-            let frame = FrameCanvas(
+            let frame = FlowerFrameCanvas(
                 position: CGPoint(x: 150, y: 150),
                 growth: getGrowth(frame: f),
                 rotation: getPetalRotation(frame: f)
@@ -202,7 +202,7 @@ struct CanvasDrawing: View {
 
         // Render every frame
         for f in 1...maxFrames {
-            let frame = FrameCanvas(
+            let frame = FlowerFrameCanvas(
                 position: CGPoint(x: 150, y: 150),
                 growth: getGrowth(frame: f),
                 rotation: getPetalRotation(frame: f)
@@ -245,6 +245,6 @@ struct CanvasDrawing: View {
 }
 
 #Preview {
-    CanvasDrawing()
+    FlowerCanvas()
     
 }
